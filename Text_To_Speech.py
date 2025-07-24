@@ -1,36 +1,53 @@
 import os
+import time
 import pyttsx3
 from gtts import gTTS
 from playsound import playsound
+from langdetect import detect
 
-def speak_text(text):
-    if not text.strip():
-        print("⚠️ Please enter non-empty text.")
+def split_text_with_pauses(input_text, pause_characters={'.', '!', '?', ','}, pause_duration=0.7):
+    Text = []
+    sentence = ""
+    for char in input_text:
+        sentence += char
+        if char in pause_characters:
+            Text.append(sentence.strip())
+            sentence = ""
+    if sentence.strip():
+        Text.append(sentence.strip())
+    return Text, pause_duration
+
+def convert_text_to_speech(input_text):
+    if not input_text.strip():
         return
 
-    # Get the directory of the current script
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    save_path = os.path.join(current_dir, "tts_text.mp3")
+    try:
+        detected_language = detect(input_text)
+    except:
+        detected_language = 'en'
+
+    Text, segment_pause = split_text_with_pauses(input_text)
+
+    # Join all text segments back together with natural pause simulation (e.g., periods)
+    combined_text = " ".join(Text)
+    output_audio_path = os.path.join(os.getcwd(), "final_speech.mp3")
 
     try:
-        tts = gTTS(text)
-        tts.save(save_path)
-        print(f"✅ Saved and playing: {save_path}")
-        playsound(save_path)
-    except Exception as e:
-        print(f"❌ gTTS failed: {e}")
-        print("▶ Falling back to pyttsx3 (WAV - Offline)...")
-        try:
-            engine = pyttsx3.init()
-            engine.say(text)
-            engine.runAndWait()
-        except Exception as e2:
-            print(f"❌ pyttsx3 also failed: {e2}")
+        time.sleep(0.5)  # brief pause before starting
+        gTTS(combined_text, lang=detected_language).save(output_audio_path)
+        time.sleep(0.2)  # ensure file is saved
+        playsound(output_audio_path)
 
-# Run
+    except:
+        speech_engine = pyttsx3.init()
+        speech_engine.setProperty('rate', 150)
+        time.sleep(0.5)
+        speech_engine.say(combined_text)
+        speech_engine.runAndWait()
+
 if __name__ == "__main__":
     try:
-        user_input = input("Enter the text you want to convert to speech:\n")
-        speak_text(user_input)
+        user_input_text = input("Enter the text to speak: ")
+        convert_text_to_speech(user_input_text)
     except KeyboardInterrupt:
-        print("\n⛔ Operation cancelled by user.")
+        print("\nCancelled by user.")
